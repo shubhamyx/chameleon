@@ -59,6 +59,16 @@ async function generate() {
   setLoading(false);
 }
 
+async function upgrade() {
+  const res = await fetch('/api/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: user?.id })
+  })
+  const data = await res.json()
+  window.location.href = data.url
+}
+
   return (
     <main
       className={`${mono.className} min-h-screen bg-[#0a0a0b] flex items-center justify-center p-6`}
@@ -90,7 +100,14 @@ async function generate() {
         </SignInButton>
       )}
     </div>
+    <div>
+      <button onClick={upgrade} className="text-xs bg-[#c8f04a] text-[#0e0e0f] px-3 py-1.5 rounded-md font-medium">
+        Upgrade
+      </button> 
+    </div>
+
     </header>
+
       
 
         {/* Two-panel body */}
@@ -140,7 +157,6 @@ async function generate() {
               {loading ? "Generating..." : result}
             </div>
           </div>
-
         </div>
       </div>
     </main>
