@@ -17,6 +17,7 @@ const { isSignedIn, user } = useUser();
 
 
 
+
 async function generate() {
   if (!youtubeUrl.trim()) {
     alert("Please enter a YouTube URL");
@@ -24,38 +25,44 @@ async function generate() {
   }
 
   if (!isSignedIn) {
-    alert("Please sign in to generate newsletters");
-    return;
-  }
-
-  // Check usage
-  const { data } = await supabase
-    .from('usage')
-    .select('count, plan')
-    .eq('user_id', user.id)
-    .single()
-
-  if (data && data.plan === 'free' && data.count >= 20) {
-    alert("You've reached your free limit of 20 newsletters. Please upgrade.");
+    alert("Please sign in");
     return;
   }
 
   setLoading(true);
-  const res = await fetch("https://chameleon-backend-ilwb.onrender.com/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ youtube_url: youtubeUrl, past_newsletters: newsletters }),
-  });
-  const data2 = await res.json();
-  setResult(data2.result);
+  
+  try {
+    const { data } = await supabase
+      .from('usage')
+      .select('count, plan')
+      .eq('user_id', user.id)
+      .single()
 
-  // Update usage count
-  await supabase.from('usage').upsert({
-    user_id: user.id,
-    count: (data?.count || 0) + 1,
-    plan: data?.plan || 'free'
-  })
+    if (data && data.plan === 'free' && data.count >= 20) {
+      alert("You've reached your free limit. Please upgrade.");
+      setLoading(false);
+      return;
+    }
 
+    const res = await fetch("https://chameleon-backend-ilwb.onrender.com/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ youtube_url: youtubeUrl, past_newsletters: newsletters }),
+    });
+    const data2 = await res.json();
+    setResult(data2.result);
+
+    await supabase.from('usage').upsert({
+      user_id: user.id,
+      count: (data?.count || 0) + 1,
+      plan: data?.plan || 'free'
+    }, { onConflict: 'user_id' })
+
+  } catch (err) {
+    console.error(err);
+    setResult("Something went wrong. Please try again.");
+  }
+  
   setLoading(false);
 }
 
