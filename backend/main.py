@@ -2,11 +2,12 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel
-from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 import re
+import httpx 
+import os
 
 load_dotenv()
 
@@ -52,6 +53,15 @@ def get_video_id(url):
             return match.group(1)
     return None
 
+def get_transcript(video_id: str) -> str:
+    url = "https://api.supadata.ai/v1/youtube/transcript"
+    headers = {"x-api-key": os.getenv("SUPADATA_API_KEY")}
+    params = {"videoId": video_id, "text": True}
+    response = httpx.get(url, headers=headers, params=params)
+    data = response.json()
+    if "content" not in data:
+        raise Exception("Could not fetch transcript")
+    return data["content"]
 
 class GenerateRequest(BaseModel):
     youtube_url: str
@@ -69,9 +79,7 @@ def generate(request: GenerateRequest):
         if not video_id:
             return {"error": "Invalid YouTube URL. Please check and try again."}
         
-        ytt = YouTubeTranscriptApi()
-        transcript_list = ytt.fetch(video_id)
-        transcript = " ".join([t.text for t in transcript_list])
+        transcript = get_transcript(video_id)
         
         if len(transcript) > 12000:
             transcript = transcript[:12000]
@@ -82,6 +90,8 @@ def generate(request: GenerateRequest):
         return {"result": summary}
     except Exception as e:
         return {"error": f"Error: {str(e)}\nMake sure the video has subtitles/captions enabled."}
+    
+    
 
 
 
