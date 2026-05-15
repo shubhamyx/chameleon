@@ -1,170 +1,90 @@
-// app/page.jsx
 "use client";
-import { DM_Mono } from "next/font/google";
-import { useState } from "react"; 
-import { SignInButton, SignOutButton, useUser } from '@clerk/nextjs'
-import { supabase } from '@/lib/supabase'
+import React from "react";
+import { useRouter } from 'next/navigation';
 
-const mono = DM_Mono({ subsets: ["latin"], weight: ["400", "500"] });
+
 
 export default function Home() {
-
-const [youtubeUrl, setYoutubeUrl] = useState("");
-const [newsletters, setNewsletters] = useState("");
-const [result, setResult] = useState("");
-const [loading, setLoading] = useState(false);
-const { isSignedIn, user } = useUser();
-
-
-
-async function generate() {
-  if (!youtubeUrl.trim()) {
-    alert("Please enter a YouTube URL");
-    return;
-  }
-
-  if (!isSignedIn) {
-    alert("Please sign in");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const { data } = await supabase
-      .from('usage')
-      .select('count, plan')
-      .eq('user_id', user.id)
-      .single()
-
-    if (data && data.plan === 'free' && data.count >= 20) {
-      alert("You've reached your free limit. Please upgrade.");
-      setLoading(false);
-      return;
-    }
-
-    const res = await fetch("https://chameleon-backend-ilwb.onrender.com/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ youtube_url: youtubeUrl, past_newsletters: newsletters }),
-    });
-    const data2 = await res.json();
-    setResult(data2.result);
-
-    await supabase.from('usage').upsert({
-      user_id: user.id,
-      count: (data?.count || 0) + 1,
-      plan: data?.plan || 'free'
-    }, { onConflict: 'user_id' })
-
-  } catch (err) {
-    console.error(err);
-    setResult("Something went wrong. Please try again.");
-  }
-
-  setLoading(false);
-}
-
-async function upgrade() {
-  const res = await fetch('/api/checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: user?.id })
-  })
-  const data = await res.json()
-  window.location.href = data.url
-}
-
+  const router = useRouter();
   return (
-    <main
-      className={`${mono.className} min-h-screen bg-[#0a0a0b] flex items-center justify-center p-6`}
-    >
-      <div className="w-full max-w-5xl bg-[#0e0e0f] rounded-xl border border-[#1f1f22] overflow-hidden">
+    <div style={{ minHeight: "100vh", background: "#0e0e0f", color: "white", fontFamily: "sans-serif" }}>
+      {/* NAVBAR */}
+      <nav style={{ display: "flex", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 600 }}>
+          <div style={{ width: 32, height: 32, background: "#c8f04a", borderRadius: "50%" }} />
+          Chameleon
+        </div>
+        <button 
+            onClick={()=> router.push('/app')}
+            style={{ padding: "8px 16px", background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "white", cursor: "pointer" }}>
+          Sign in
+        </button>
+      </nav>
 
-    <header className="flex items-center gap-3 px-5 py-4 border-b border-[#1f1f22]">
-    <div className="w-6 h-6 rounded-full bg-[#c8f04a] flex items-center justify-center">
-      <div className="w-2 h-2 rounded-full bg-[#0e0e0f]" />
-    </div>
-    <span className="text-[#f0f0ee] text-sm font-medium tracking-wide">
-      Chameleon
-    </span>
-    <span className="text-[#444] text-xs tracking-wider">
-      / newsletter generator
-    </span>
-    <div className="ml-auto">
-      {isSignedIn ? (
-        <SignOutButton>
-          <button className="text-xs text-[#555] hover:text-[#e8e8e4] transition-colors">
-            Sign out
-          </button>
-        </SignOutButton>
-      ) : (
-        <SignInButton>
-          <button className="text-xs bg-[#c8f04a] text-[#0e0e0f] px-3 py-1.5 rounded-md font-medium">
-            Sign in
-          </button>
-        </SignInButton>
-      )}
-    </div>
-    <div>
-      <button onClick={upgrade} className="text-xs bg-[#c8f04a] text-[#0e0e0f] px-3 py-1.5 rounded-md font-medium">
-        Upgrade
-      </button> 
-    </div>
-
-    </header>
-
-      
-
-        {/* Two-panel body */}
-        <div className="grid grid-cols-2 min-h-[540px]">
-
-          {/* Left panel */}
-          <div className="p-5 border-r border-[#1f1f22] flex flex-col gap-5">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-[#555] mb-2">
-                YouTube URL
-              </label>
-              <input
-                value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)}
-                type="url"
-                placeholder="https://youtube.com/watch?v=..."
-                className="w-full bg-[#17171a] border border-[#2a2a2e] rounded-lg px-3 py-2.5 text-[#e8e8e4] text-sm placeholder:text-[#3d3d42] focus:outline-none focus:border-[#c8f04a] transition-colors"
-              />
-            </div>
-
-            <div className="flex-1">
-              <label className="block text-[10px] uppercase tracking-widest text-[#555] mb-2">
-                Past newsletters{" "}
-                <span className="normal-case tracking-normal text-[#3a3a3f]">
-                  — paste 2–3 for style matching
-                </span>
-              </label>
-              <textarea
-                rows={12}
-                placeholder="Paste your previous newsletters here. Chameleon will study your voice, tone, and structure..."
-                className="w-full h-[280px] bg-[#17171a] border border-[#2a2a2e] rounded-lg px-3 py-2.5 text-[#e8e8e4] text-sm placeholder:text-[#3d3d42] focus:outline-none focus:border-[#c8f04a] transition-colors resize-none"
-                value={newsletters}
-                onChange={(e) => setNewsletters(e.target.value)}
-              />
-            </div>
-
-            <button onClick={generate} className="w-full bg-[#c8f04a] text-[#0e0e0f] rounded-lg py-3 text-sm font-medium tracking-wide hover:bg-[#d6f76a] active:scale-[0.99] transition-all cursor-pointer">
-              Generate newsletter
+      {/* HERO */}
+      <section style={{ textAlign: "center", padding: "80px 20px" }}>
+        <h1 style={{ fontSize: "48px", fontWeight: "bold" }}>
+          Turn YouTube videos into newsletters in your voice
+        </h1>
+        <p style={{ marginTop: 16, color: "rgba(255,255,255,0.7)", maxWidth: 600, marginInline: "auto" }}>
+          Paste any YouTube link and generate a clean, engaging newsletter that sounds just like you.
+        </p>
+            <button 
+                onClick={() => router.push('/app')}
+                style={{ marginTop: 24, padding: "12px 24px", background: "#c8f04a", color: "black", border: "none", cursor: "pointer" }}>
+                Get Started Free
             </button>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section style={{ padding: "60px 20px", maxWidth: 1000, margin: "auto" }}>
+        <h2 style={{ textAlign: "center", fontSize: 28, marginBottom: 40 }}>How it works</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 20 }}>
+          <div style={{ padding: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <h3>1. Paste YouTube URL</h3>
+            <p style={{ color: "rgba(255,255,255,0.7)" }}>
+              Drop any YouTube video link to get started instantly.
+            </p>
           </div>
 
-          {/* Right panel */}
-          <div className="p-5 bg-[#0c0c0d]">
-            <label className="block text-[10px] uppercase tracking-widest text-[#444] mb-3">
-              Output
-            </label>
-            <div className="bg-[#111113] border border-[#1f1f22] rounded-lg p-4 h-[calc(100%-28px)] text-[#e8e8e4] text-sm leading-relaxed  whitespace-pre-wrap Overflow-y-auto">
-              {loading ? "Generating..." : result}
-            </div>
+          <div style={{ padding: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <h3>2. Add past newsletters</h3>
+            <p style={{ color: "rgba(255,255,255,0.7)" }}>
+              Train the AI with your previous content to match your tone.
+            </p>
+          </div>
+
+          <div style={{ padding: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <h3>3. Generate newsletter</h3>
+            <p style={{ color: "rgba(255,255,255,0.7)" }}>
+              Get a polished newsletter written in your unique voice.
+            </p>
           </div>
         </div>
-      </div>
-    </main>
+      </section>
+
+      {/* PRICING */}
+      <section style={{ padding: "60px 20px", background: "rgba(255,255,255,0.05)" }}>
+        <h2 style={{ textAlign: "center", fontSize: 28, marginBottom: 40 }}>Pricing</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 20, maxWidth: 800, margin: "auto" }}>
+          <div style={{ padding: 20, border: "1px solid rgba(255,255,255,0.1)" }}>
+            <h3>Free</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>$0</p>
+            <p style={{ color: "rgba(255,255,255,0.7)" }}>20 newsletters / month</p>
+          </div>
+
+          <div style={{ padding: 20, background: "#c8f04a", color: "black" }}>
+            <h3>Pro</h3>
+            <p style={{ fontSize: 24, fontWeight: "bold" }}>$9/month</p>
+            <p>Unlimited newsletters</p>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ textAlign: "center", padding: 20, borderTop: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
+        © Chameleon 2026
+      </footer>
+    </div>
   );
 }
